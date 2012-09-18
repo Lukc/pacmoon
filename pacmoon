@@ -5,7 +5,7 @@ setopt warnCreateGlobal extendedGlob noFunctionArgZero nullGlob
 
 PACMOON_VERSION=0.8.3
 AUR_BASE=http://aur.archlinux.org/packages
-ABS_DIR=/var/abs
+ABS_DIR=/usr/ports
 ABS_RSYNC=rsync.archlinux.org::abs
 RSYNC_ARGS=(-mrtv --no-motd --no-p --no-o --no-g)
 
@@ -15,6 +15,52 @@ colors
 pmoonHome="${XDG_CONFIG_HOME:-$HOME/.config}/pacmoon"
 logFile="$pmoonHome/log"
 mkdir -p $pmoonHome/pkg || die "could not mkdir $pmoonHome/pkg"
+
+# FIXME: Modularize
+
+get_installed_packages_list() {
+        pkginfo -i | cut -d " " -f 1
+}
+
+get_installation_date() {
+        echo - -
+}
+
+get_collection() {
+        local collection=$( find $ABS_DIR | grep "/$1/Pkgfile" | head -n1 | sed "s&$ABS_DIR/&&;s&/$1/Pkgfile&&" )
+
+        [[ -n "$collection" ]] && echo "$collection" || \
+                echo - -
+}
+
+get_installed_version() {
+        local version=$(pkginfo -i | grep "^$1 " | cut -d " " -f 2)
+        [[ -n "$version" ]] && echo "$version" 
+}
+
+get_available_version() {
+        local collection=$(get_collection $1)
+        
+        if [[ "$collection" != - ]]; then
+                zsh -c ". $ABS_DIR/$collection/$1/Pkgfile; echo \$version-\$release"
+        else
+                get_installed_version $1
+        fi
+}
+
+get_conflicts() {
+        :
+}
+
+is_installed() {
+        grep -q "^$1$" /var/lib/pkg/db
+}
+
+get_architecture() {
+        crux | cut -d " " -f 2
+}
+
+#/FIXME
 
 typeset -A dep_status
 
@@ -129,19 +175,21 @@ build_pkg() {
 
     rm -f *.pkg.tar.*
     if [[ $+quiet -eq 1 ]] ; then
-        makepkg &>/dev/null $mkpkg_args
+        as_root pkg++ &>/dev/null $mkpkg_args
     else
-        makepkg $mkpkg_args
+        as_root pkg++ $mkpkg_args
     fi
 
     [[ $? -eq 0 ]] || die "could not build $name"
 
     # TODO: test split packages one by one
-    as_root pacman --noconfirm -U ${as_dep+--asdeps} *.pkg.tar.* || \
-        die "could not install package"
+    #as_root pacman --noconfirm -U ${as_dep+--asdeps} *.pkg.tar.* || \
+    #    die "could not install package"
+    # FIXME: This sucks.
+    as_root pkg++ -i -u
 
     # record the date the package was dep_status
-    package-query -Qif %1 $name > "$pmoonHome/pkg/$name"
+    get_installation_date $name > "$pmoonHome/pkg/$name"
     [[ $+keep_temp = 0 ]] && rm -rf "$pmoonHome/tmp/$name"
     popd
 }
@@ -153,11 +201,14 @@ resolve_name() {
 
     local pq_fmt="%1 %s %n %v %l"
     typeset -a pkgData
-    pkgData=( $(package-query -Qf $pq_fmt --query-type provides $name_v || \
-                package-query -Qif $pq_fmt $name_v || \
-                package-query -Sif $pq_fmt $name_v) )
+    pkgData=( $(get_installation_date $name)
+              $(get_collection $name)
+              $name
+              $(get_available_version $name)
+              $(get_installed_version $name) )
 
     if [[ -z $pkgData ]] ; then
+        # FIXME: Replace that?
         pkgData=( $(package-query -Sf $pq_fmt --query-type provides $name) )
 
         if [[ $#pkgData -ne 4 ]] ; then
@@ -177,7 +228,7 @@ resolve_name() {
 
     # check if package conflicts with anything already installed
     local conflict
-    conflict=( $(package-query -Qf $pq_fmt --query-type conflicts "$pkgData[3]=$pkgData[4]") )
+    conflict=( $(get_conflicts $name_v) )
     if [[ -n $conflict ]] ; then
         echo "$conflict"
     else
@@ -191,13 +242,15 @@ collect_pkg_data() {
     local repo=$2
     local ver=$3
 
-    if [[ $repo = local ]] ; then
-        warn "unsupported: AUR package $name"
+    if [[ $repo = - ]] ; then
+        warn "no recipe found for package $name"
     else
         verbose "adding package $name from $repo to install list"
 
-        local basename=$(grep -A1 '%BASE%' \
-               ${dbPath}/sync/$repo/$name-[0-9]*/desc | tail -n 1)
+        # WTF is that for?
+        #local basename=$(grep -A1 '%BASE%' \
+        #       ${dbPath}/sync/$repo/$name-[0-9]*/desc | tail -n 1)
+        local basename=$name
 
         if [[ -n $basename && $basename != $name ]] ; then
             if [[ $+split_pkgs[$basename] -eq 1 ]] ; then
@@ -223,10 +276,10 @@ collect_pkg_data() {
 
         pushd_build_dir $basename
 
-        local arch=$(package-query -Sif %a $repo/$basename)
-        local use_abs=0
+        local arch=$(get_architecture $repo/$basename)
+        local use_abs=1 # FIXME: For now… well… not a good idea.
         if [[ $+no_abs -eq 0 ]] ; then
-            if cp &>/dev/null -r $ABS_DIR/$repo/$basename/* . ; then
+            if cp &>/dev/null -r "$ABS_DIR/$repo/$basename"/* . ; then
                 use_abs=1
             else
                 warn "could not get $basename from local abs, falling back to rsync"
@@ -243,8 +296,8 @@ collect_pkg_data() {
         fi
 
         typeset -a mk_deps
-        mk_deps=( $(bash -c \
-            '. /etc/makepkg.conf; . PKGBUILD && echo $pkgver-$pkgrel ${makedepends[@]}') )
+        mk_deps=( $(zsh -c \
+            '. /etc/pkg++.conf; . ./Pkgfile && echo $version-$release ${depends[@]} ${builddepends[@]} && grep "^# Depends on:" Pkgfile | sed "s/# Depends on://"') )
 
         local abs_ver=$mk_deps[1]
         if [[ $abs_ver != $ver ]] ; then
@@ -367,7 +420,7 @@ collect_all() {
     else
         warn "last update time not found, checking all installed packages"
 
-        for pkg in $(pacman -Qq) ; do
+        for pkg in $(get_installed_packages_list) ; do
             collect_pkg $pkg
         done
     fi
