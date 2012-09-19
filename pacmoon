@@ -19,45 +19,45 @@ mkdir -p $pmoonHome/pkg || die "could not mkdir $pmoonHome/pkg"
 # FIXME: Modularize
 
 get_installed_packages_list() {
-        pkginfo -i | cut -d " " -f 1
+	pkginfo -i | cut -d " " -f 1
 }
 
 get_installation_date() {
-        echo - -
+	echo - -
 }
 
 get_collection() {
-        local collection=$( find $ABS_DIR | grep "/$1/Pkgfile" | head -n1 | sed "s&$ABS_DIR/&&;s&/$1/Pkgfile&&" )
+	local collection=$( find $ABS_DIR | grep "/$1/Pkgfile" | head -n1 | sed "s&$ABS_DIR/&&;s&/$1/Pkgfile&&" )
 
-        [[ -n "$collection" ]] && echo "$collection" || \
-                echo - -
+	[[ -n "$collection" ]] && echo "$collection" || \
+		echo - -
 }
 
 get_installed_version() {
-        local version=$(pkginfo -i | grep "^$1 " | cut -d " " -f 2)
-        [[ -n "$version" ]] && echo "$version" 
+	local version=$(pkginfo -i | grep "^$1 " | cut -d " " -f 2)
+	[[ -n "$version" ]] && echo "$version" 
 }
 
 get_available_version() {
-        local collection=$(get_collection $1)
-        
-        if [[ "$collection" != - ]]; then
-                zsh -c ". $ABS_DIR/$collection/$1/Pkgfile; echo \$version-\$release"
-        else
-                get_installed_version $1
-        fi
+	local collection=$(get_collection $1)
+		
+	if [[ "$collection" != - ]]; then
+		zsh -c ". $ABS_DIR/$collection/$1/Pkgfile; echo \$version-\$release"
+	else
+		get_installed_version $1
+	fi
 }
 
 get_conflicts() {
-        :
+	:
 }
 
 is_installed() {
-        grep -q "^$1$" /var/lib/pkg/db
+	grep -q "^$1$" /var/lib/pkg/db
 }
 
 get_architecture() {
-        crux | cut -d " " -f 2
+	crux | cut -d " " -f 2
 }
 
 #/FIXME
@@ -68,75 +68,75 @@ c_ver=$fg[green]
 c_rst=$fg_no_bold[default]
 
 info() {
-    echo " $fg[green]*$c_rst $*"
+	echo " $fg[green]*$c_rst $*"
 }
 
 print_pkg() {
-    info $1 "[$c_ver$2$c_rst]"
+	info $1 "[$c_ver$2$c_rst]"
 }
 
 print_inst_pkg() {
-    echo -n " $fg[green]*$c_rst" $1 "[$c_ver$2$c_rst]"
+	echo -n " $fg[green]*$c_rst" $1 "[$c_ver$2$c_rst]"
 
-    if [[ $+split_pkgs[$1] -eq 1 ]] ; then
-        # TODO: print whether each split package is going to be installed
-        #       as a dependency separately
-        echo " ($split_pkgs[$pkg])"
-    elif is_dep $pkg ; then
-        echo " (dependency)"
-    else
-        echo ""
-    fi
+	if [[ $+split_pkgs[$1] -eq 1 ]] ; then
+		# TODO: print whether each split package is going to be installed
+		#	   as a dependency separately
+		echo " ($split_pkgs[$pkg])"
+	elif is_dep $pkg ; then
+		echo " (dependency)"
+	else
+		echo ""
+	fi
 }
 
 log_info() {
-    info $*
-    echo info: $* >> $logFile
+	info $*
+	echo info: $* >> $logFile
 }
 
 warn() {
-    echo " $fg_bold[yellow]*$c_rst $*"
-    echo warn: $* >> $logFile
+	echo " $fg_bold[yellow]*$c_rst $*"
+	echo warn: $* >> $logFile
 }
 
 die() {
-    echo " $fg_bold[red]*$c_rst $*"
-    echo fatal: $* >> $logFile
-    exit 1
+	echo " $fg_bold[red]*$c_rst $*"
+	echo fatal: $* >> $logFile
+	exit 1
 }
 
 error() {
-    echo " $fg_bold[red]*$c_rst $*"
-    echo error: $* >> $logFile
-    [[ $+keep_going -eq 1 ]] || exit 1
+	echo " $fg_bold[red]*$c_rst $*"
+	echo error: $* >> $logFile
+	[[ $+keep_going -eq 1 ]] || exit 1
 }
 
 verbose() {
-    if [[ $+verbose -eq 1 ]] ; then
-        echo " $fg_bold[cyan]*$c_rst $*"
-    fi
+	if [[ $+verbose -eq 1 ]] ; then
+		echo " $fg_bold[cyan]*$c_rst $*"
+	fi
 }
 
 list_uncompiled() {
-    error "listing uncompiled packages not supported yet"
+	error "listing uncompiled packages not supported yet"
 }
 
 list_compiled() {
-    error "listing compiled packages not supported yet"
+	error "listing compiled packages not supported yet"
 }
 
 list_pkgs() {
-    error "listing packages not supported yet"
+	error "listing packages not supported yet"
 }
 
 pushd_build_dir() {
-    local build_dir="$pmoonHome/tmp/$1"
-    mkdir -p $build_dir
-    pushd $build_dir
+	local build_dir="$pmoonHome/tmp/$1"
+	mkdir -p $build_dir
+	pushd $build_dir
 }
 
 pacman_output_field() {
-    pacman 2>/dev/null ${(s: :)1} | grep "^$2" | sed 's/.*: //'
+	pacman 2>/dev/null ${(s: :)1} | grep "^$2" | sed 's/.*: //'
 }
 
 dbPath=$(pacman_output_field -v DB)
@@ -150,370 +150,370 @@ typeset -a abs_failed
 typeset -a abs_badv
 
 is_dep() {
-    [[ $+requested_pkgs[$1] -eq 0 ]] && ! pacman &>/dev/null -Qe $1
+	[[ $+requested_pkgs[$1] -eq 0 ]] && ! pacman &>/dev/null -Qe $1
 }
 
 build_pkg() {
-    local name=$1
+	local name=$1
 
-    pushd "$pmoonHome/tmp/$name" || \
-        die "could not cd to $pmoonHome/tmp/$name"
-    rm -rf src
+	pushd "$pmoonHome/tmp/$name" || \
+		die "could not cd to $pmoonHome/tmp/$name"
+	rm -rf src
 
-    typeset -a mkpkg_args
-    mkpkg_args=(-f)
-    if [[ $+split_pkgs[$name] -eq 1 ]] ; then
-        # fullname only set for split packages
-        mkpkg_args=($mkpkg_args --pkg "$split_pkgs[$name]")
-    fi
+	typeset -a mkpkg_args
+	mkpkg_args=(-f)
+	if [[ $+split_pkgs[$name] -eq 1 ]] ; then
+		# fullname only set for split packages
+		mkpkg_args=($mkpkg_args --pkg "$split_pkgs[$name]")
+	fi
 
-    if is_dep $pkg ; then
-        local as_dep
-    fi
+	if is_dep $pkg ; then
+		local as_dep
+	fi
 
-    log_info "build ${as_dep+dependency }package $name ($mkpkg_args)"
+	log_info "build ${as_dep+dependency }package $name ($mkpkg_args)"
 
-    rm -f *.pkg.tar.*
-    if [[ $+quiet -eq 1 ]] ; then
-        as_root pkg++ &>/dev/null $mkpkg_args
-    else
-        as_root pkg++ $mkpkg_args
-    fi
+	rm -f *.pkg.tar.*
+	if [[ $+quiet -eq 1 ]] ; then
+		as_root pkg++ &>/dev/null $mkpkg_args
+	else
+		as_root pkg++ $mkpkg_args
+	fi
 
-    [[ $? -eq 0 ]] || die "could not build $name"
+	[[ $? -eq 0 ]] || die "could not build $name"
 
-    # TODO: test split packages one by one
-    #as_root pacman --noconfirm -U ${as_dep+--asdeps} *.pkg.tar.* || \
-    #    die "could not install package"
-    # FIXME: This sucks.
-    as_root pkg++ -i -u
+	# TODO: test split packages one by one
+	#as_root pacman --noconfirm -U ${as_dep+--asdeps} *.pkg.tar.* || \
+	#	die "could not install package"
+	# FIXME: This sucks.
+	as_root pkg++ -i -u
 
-    # record the date the package was dep_status
-    get_installation_date $name > "$pmoonHome/pkg/$name"
-    [[ $+keep_temp = 0 ]] && rm -rf "$pmoonHome/tmp/$name"
-    popd
+	# record the date the package was dep_status
+	get_installation_date $name > "$pmoonHome/pkg/$name"
+	[[ $+keep_temp = 0 ]] && rm -rf "$pmoonHome/tmp/$name"
+	popd
 }
 
 # echos: <install date> <sync repo> <name> <version> <installed version>
 resolve_name() {
-    local name=$1
-    local name_v=$2
+	local name=$1
+	local name_v=$2
 
-    local pq_fmt="%1 %s %n %v %l"
-    typeset -a pkgData
-    pkgData=( $(get_installation_date $name)
-              $(get_collection $name)
-              $name
-              $(get_available_version $name)
-              $(get_installed_version $name) )
+	local pq_fmt="%1 %s %n %v %l"
+	typeset -a pkgData
+	pkgData=( $(get_installation_date $name)
+	          $(get_collection $name)
+	          $name
+	          $(get_available_version $name)
+	          $(get_installed_version $name) )
 
-    if [[ -z $pkgData ]] ; then
-        # FIXME: Replace that?
-        pkgData=( $(package-query -Sf $pq_fmt --query-type provides $name) )
+	if [[ -z $pkgData ]] ; then
+		# FIXME: Replace that?
+		pkgData=( $(package-query -Sf $pq_fmt --query-type provides $name) )
 
-        if [[ $#pkgData -ne 4 ]] ; then
-            if [[ $#pkgData -lt 4 ]] ; then
-                # TODO: check aur
-                error "could not find package $name_v"
-            else
-                error "multiple packages provide $name_v"
-                for ignore repo pr_name ver in "${(@)pkgData}" ; do
-                    error "    $pr_name-$ver in $repo"
-                done
-                error "please install one of these and run this script again"
-            fi
-            return 1
-        fi
-    fi
+		if [[ $#pkgData -ne 4 ]] ; then
+			if [[ $#pkgData -lt 4 ]] ; then
+				# TODO: check aur
+				error "could not find package $name_v"
+			else
+				error "multiple packages provide $name_v"
+				for ignore repo pr_name ver in "${(@)pkgData}" ; do
+					error "	$pr_name-$ver in $repo"
+				done
+				error "please install one of these and run this script again"
+			fi
+			return 1
+		fi
+	fi
 
-    # check if package conflicts with anything already installed
-    local conflict
-    conflict=( $(get_conflicts $name_v) )
-    if [[ -n $conflict ]] ; then
-        echo "$conflict"
-    else
-        echo "$pkgData"
-    fi
+	# check if package conflicts with anything already installed
+	local conflict
+	conflict=( $(get_conflicts $name_v) )
+	if [[ -n $conflict ]] ; then
+		echo "$conflict"
+	else
+		echo "$pkgData"
+	fi
 }
 
 
 collect_pkg_data() {
-    local name=$1
-    local repo=$2
-    local ver=$3
+	local name=$1
+	local repo=$2
+	local ver=$3
 
-    if [[ $repo = - ]] ; then
-        warn "no recipe found for package $name"
-    else
-        verbose "adding package $name from $repo to install list"
+	if [[ $repo = - ]] ; then
+		warn "no recipe found for package $name"
+	else
+		verbose "adding package $name from $repo to install list"
 
-        # WTF is that for?
-        #local basename=$(grep -A1 '%BASE%' \
-        #       ${dbPath}/sync/$repo/$name-[0-9]*/desc | tail -n 1)
-        local basename=$name
+		# WTF is that for?
+		#local basename=$(grep -A1 '%BASE%' \
+		#	   ${dbPath}/sync/$repo/$name-[0-9]*/desc | tail -n 1)
+		local basename=$name
 
-        if [[ -n $basename && $basename != $name ]] ; then
-            if [[ $+split_pkgs[$basename] -eq 1 ]] ; then
-                split_pkgs[$basename]+=" $name"
-                return
-            fi
+		if [[ -n $basename && $basename != $name ]] ; then
+			if [[ $+split_pkgs[$basename] -eq 1 ]] ; then
+				split_pkgs[$basename]+=" $name"
+				return
+			fi
 
-            split_pkgs[$basename]=$name
+			split_pkgs[$basename]=$name
 
-            # already got here through another package in split
-            if [[ $+dep_status[$basename] -eq 1 ]] ; then
-                split_pkgs[$basename]+=" $basename"
-                return
-            fi
-        else
-            local basename=$name
+			# already got here through another package in split
+			if [[ $+dep_status[$basename] -eq 1 ]] ; then
+				split_pkgs[$basename]+=" $basename"
+				return
+			fi
+		else
+			local basename=$name
 
-            # already got here through split package
-            if [[ $+split_pkgs[$basename] -eq 1 ]] ; then
-                split_pkgs[$basename]+=" $name"
-            fi
-        fi
+			# already got here through split package
+			if [[ $+split_pkgs[$basename] -eq 1 ]] ; then
+				split_pkgs[$basename]+=" $name"
+			fi
+		fi
 
-        pushd_build_dir $basename
+		pushd_build_dir $basename
 
-        local arch=$(get_architecture $repo/$basename)
-        local use_abs=1 # FIXME: For now… well… not a good idea.
-        if [[ $+no_abs -eq 0 ]] ; then
-            if cp &>/dev/null -r "$ABS_DIR/$repo/$basename"/* . ; then
-                use_abs=1
-            else
-                warn "could not get $basename from local abs, falling back to rsync"
-            fi
-        fi
+		local arch=$(get_architecture $repo/$basename)
+		local use_abs=1 # FIXME: For now… well… not a good idea.
+		if [[ $+no_abs -eq 0 ]] ; then
+			if cp &>/dev/null -r "$ABS_DIR/$repo/$basename"/* . ; then
+				use_abs=1
+			else
+				warn "could not get $basename from local abs, falling back to rsync"
+			fi
+		fi
 
-        if [[ $use_abs -eq 0 ]] ; then
-            rsync &>/dev/null $RSYNC_ARGS "$ABS_RSYNC/$arch/$repo/$basename/" .
-            if [[ $? -ne 0 ]] ; then
-                warn "could not retrieve $basename-$ver from abs rsync"
-                abs_failed+=($basename $ver)
-                return 1
-            fi
-        fi
+		if [[ $use_abs -eq 0 ]] ; then
+			rsync &>/dev/null $RSYNC_ARGS "$ABS_RSYNC/$arch/$repo/$basename/" .
+			if [[ $? -ne 0 ]] ; then
+				warn "could not retrieve $basename-$ver from abs rsync"
+				abs_failed+=($basename $ver)
+				return 1
+			fi
+		fi
 
-        typeset -a mk_deps
-        mk_deps=( $(zsh -c \
-            '. /etc/pkg++.conf; . ./Pkgfile && echo $version-$release ${depends[@]} ${builddepends[@]} && grep "^# Depends on:" Pkgfile | sed "s/# Depends on://"') )
+		typeset -a mk_deps
+		mk_deps=( $(zsh -c \
+			'. /etc/pkg++.conf; . ./Pkgfile && echo $version-$release ${depends[@]} ${builddepends[@]} && grep "^# Depends on:" Pkgfile | sed "s/# Depends on://"') )
 
-        local abs_ver=$mk_deps[1]
-        if [[ $abs_ver != $ver ]] ; then
-            abs_badv+=($basename $abs_ver $ver)
-            return 1
-        fi
+		local abs_ver=$mk_deps[1]
+		if [[ $abs_ver != $ver ]] ; then
+			abs_badv+=($basename $abs_ver $ver)
+			return 1
+		fi
 
-        shift mk_deps
-        if [[ $#mk_deps > 1 ]] ; then
-            verbose "begin dependencies of $name"
-            if [[ $+make_deps -eq 1 ]] ; then
-                for dep in $mk_deps ; do
-                    collect_pkg $dep
-                done
-            else
-                typeset -a pkgData
-                for dep in $mk_deps ; do
-                    pkgData=( $(resolve_name $dep $dep) )
-                    if [[ $? -eq 0 ]] && ! pacman &>/dev/null -Q $pkgData[3] ; then
-                        makedep_pkgs[$pkgData[3]]=$pkgData[4]
-                    fi
-                done
-            fi
-            verbose "end dependencies of $name"
-        fi
+		shift mk_deps
+		if [[ $#mk_deps > 1 ]] ; then
+			verbose "begin dependencies of $name"
+			if [[ $+make_deps -eq 1 ]] ; then
+				for dep in $mk_deps ; do
+					collect_pkg $dep
+				done
+			else
+				typeset -a pkgData
+				for dep in $mk_deps ; do
+					pkgData=( $(resolve_name $dep $dep) )
+					if [[ $? -eq 0 ]] && ! pacman &>/dev/null -Q $pkgData[3] ; then
+						makedep_pkgs[$pkgData[3]]=$pkgData[4]
+					fi
+				done
+			fi
+			verbose "end dependencies of $name"
+		fi
 
-        # TODO: store previous version here also
-        install_pkgs+=($basename $pkgData[4])
-        popd
-    fi
+		# TODO: store previous version here also
+		install_pkgs+=($basename $pkgData[4])
+		popd
+	fi
 }
 
 as_root() {
-    if [[ $UID -eq 0 ]] ; then $* ; else sudo $* ; fi
+	if [[ $UID -eq 0 ]] ; then $* ; else sudo $* ; fi
 }
 
 processing_pkg() {
-    if [[ $+dep_status[$1] -eq 1 ]] ; then
-        if [[ $dep_status[$1] -eq 2 ]] ; then
-            pacman &>/dev/null -Q $1 || cyclic_deps+=$1
-            dep_status[$1]=1
-        fi
-        return 1
-    fi
+	if [[ $+dep_status[$1] -eq 1 ]] ; then
+		if [[ $dep_status[$1] -eq 2 ]] ; then
+			pacman &>/dev/null -Q $1 || cyclic_deps+=$1
+			dep_status[$1]=1
+		fi
+		return 1
+	fi
 
-    dep_status[$1]=1
-    return 0
+	dep_status[$1]=1
+	return 0
 }
 
 collect_pkg() {
-    local name_v=$1
-    local name=$(echo $name_v | sed 's/[<>=].*$//')
+	local name_v=$1
+	local name=$(echo $name_v | sed 's/[<>=].*$//')
 
-    # don't check the same package twice
-    processing_pkg $name || return 0
+	# don't check the same package twice
+	processing_pkg $name || return 0
 
-    typeset -a pkgData
-    pkgData=( $(resolve_name $name $name_v) )
-    [[ $? -ne 0 ]] && return
+	typeset -a pkgData
+	pkgData=( $(resolve_name $name $name_v) )
+	[[ $? -ne 0 ]] && return
 
-    if [[ $name != $pkgData[3] ]] ; then
-        name=$pkgData[3]
-        [[ $+dep_status[$name] -eq 0 ]] || return
-        dep_status[$name]=1
-    fi
+	if [[ $name != $pkgData[3] ]] ; then
+		name=$pkgData[3]
+		[[ $+dep_status[$name] -eq 0 ]] || return
+		dep_status[$name]=1
+	fi
 
-    if [[ $pkgData[1] = - ]] ; then
-        verbose "new package $name"
-    elif [ -f $pmoonHome/pkg/$name ] ; then
-        if [[ $pkgData[1] -le $(cat $pmoonHome/pkg/$name) ]] ; then
-            resolved_pkgs+=($name $pkgData[4])
-            verbose "package $name up to date and compiled"
-            return
-        else
-            verbose "package $name was replaced by binary"
-        fi
-    else
-        verbose "package $name installed but never compiled"
-    fi
+	if [[ $pkgData[1] = - ]] ; then
+		verbose "new package $name"
+	elif [ -f $pmoonHome/pkg/$name ] ; then
+		if [[ $pkgData[1] -le $(cat $pmoonHome/pkg/$name) ]] ; then
+			resolved_pkgs+=($name $pkgData[4])
+			verbose "package $name up to date and compiled"
+			return
+		else
+			verbose "package $name was replaced by binary"
+		fi
+	else
+		verbose "package $name installed but never compiled"
+	fi
 
-    dep_status[$name]=2
-    collect_pkg_data $name $pkgData[2] $pkgData[4]
-    dep_status[$name]=1
+	dep_status[$name]=2
+	collect_pkg_data $name $pkgData[2] $pkgData[4]
+	dep_status[$name]=1
 }
 
 build_pkgs() {
-    if [[ $#install_pkgs -eq 0 ]] ; then
-        log_info "nothing to install"
-        return 0
-    fi
+	if [[ $#install_pkgs -eq 0 ]] ; then
+		log_info "nothing to install"
+		return 0
+	fi
 
-    if [[ $+ask -eq 1 ]] ; then
-        echo -n "Continue installing [yN]? "
-        read ans
-        if [[ $ans != Y && $ans != y ]] ; then
-            exit 1
-        fi
-    fi
+	if [[ $+ask -eq 1 ]] ; then
+		echo -n "Continue installing [yN]? "
+		read ans
+		if [[ $ans != Y && $ans != y ]] ; then
+			exit 1
+		fi
+	fi
 
-    for pkg in $cyclic_deps ; do
-        as_root pacman --asdeps --needed --noconfirm -S $pkg || die \
-            "could not get binary package for recursive dependency $pkg"
-    done
+	for pkg in $cyclic_deps ; do
+		as_root pacman --asdeps --needed --noconfirm -S $pkg || die \
+			"could not get binary package for recursive dependency $pkg"
+	done
 
-    for pkg in ${(k)makedep_pkgs} ; do
-        as_root pacman --asdeps --needed --noconfirm -S $pkg
-    done
+	for pkg in ${(k)makedep_pkgs} ; do
+		as_root pacman --asdeps --needed --noconfirm -S $pkg
+	done
 
-    for pkg ver in "${(@)install_pkgs}" ; do
-        build_pkg $pkg
-    done
+	for pkg ver in "${(@)install_pkgs}" ; do
+		build_pkg $pkg
+	done
 }
 
 collect_all() {
-    local logPath=$(pacman_output_field -v Log)
+	local logPath=$(pacman_output_field -v Log)
 
-    if [[ -f "$pmoonHome/last_update" ]] ; then
-        # TODO: use log to get list of candidates to compile
-        :
-    else
-        warn "last update time not found, checking all installed packages"
+	if [[ -f "$pmoonHome/last_update" ]] ; then
+		# TODO: use log to get list of candidates to compile
+		:
+	else
+		warn "last update time not found, checking all installed packages"
 
-        for pkg in $(get_installed_packages_list) ; do
-            collect_pkg $pkg
-        done
-    fi
+		for pkg in $(get_installed_packages_list) ; do
+			collect_pkg $pkg
+		done
+	fi
 }
 
 collect_pkgs() {
-    if [[ $# = 0 ]] ; then
-        collect_all
-    else
-        for pkg in $* ; do
-            requested_pkgs[$pkg]=1
-            collect_pkg $pkg
-        done
-    fi
+	if [[ $# = 0 ]] ; then
+		collect_all
+	else
+		for pkg in $* ; do
+			requested_pkgs[$pkg]=1
+			collect_pkg $pkg
+		done
+	fi
 }
 
 main() {
-    jgetopt $0 "$PACMOON_VERSION (please enjoy your evening)" \
-        ':[packages]' \
-        ask,a          "ask for confirmation before compiling" \
-        pretend,p      "only print what would be done" \
-        keep-going,k   "do not stop on error" \
-        verbose,v      "increase verbosity" \
-        quiet,q        "hide output of compilation" \
-        keep-build,b   "keep temporary build files" \
-        no-abs,A       "do not use local abs mirror (slower)" \
-        uncompiled,u   "list packages which have not been custom compiled" \
-        make-deps,m    "compile make dependencies rather than using binaries" \
-        compiled,c     "list packages which have been custom compiled" \
-        list,l         "list installed packages with their compilation status" \
-        -- $*
+	jgetopt $0 "$PACMOON_VERSION (please enjoy your evening)" \
+		':[packages]' \
+		ask,a		  "ask for confirmation before compiling" \
+		pretend,p	  "only print what would be done" \
+		keep-going,k   "do not stop on error" \
+		verbose,v	  "increase verbosity" \
+		quiet,q		"hide output of compilation" \
+		keep-build,b   "keep temporary build files" \
+		no-abs,A	   "do not use local abs mirror (slower)" \
+		uncompiled,u   "list packages which have not been custom compiled" \
+		make-deps,m	"compile make dependencies rather than using binaries" \
+		compiled,c	 "list packages which have been custom compiled" \
+		list,l		 "list installed packages with their compilation status" \
+		-- $*
 
-    if [[ $+no_abs = 0 && ! -d $ABS_DIR ]] ; then
-        warn "ABS directory is not available, reverting to downloading abs builds one at a time which is slower"
-        warn "Please install 'abs' and run it to sync your local abs mirror"
-        typeset -g no_abs
-        no_abs=1
-    fi
+	if [[ $+no_abs = 0 && ! -d $ABS_DIR ]] ; then
+		warn "ABS directory is not available, reverting to downloading abs builds one at a time which is slower"
+		warn "Please install 'abs' and run it to sync your local abs mirror"
+		typeset -g no_abs
+		no_abs=1
+	fi
 
-    if [[ $+uncompiled -eq 1 ]] ; then
-        list_uncompiled
-    elif [[ $+compiled -eq 1 ]] ; then
-        list_compiled
-    elif [[ $+list -eq 1 ]] ; then
-        list_pkgs
-    else
-        echo "please wait, collecting packages to build"
-        collect_pkgs $positionals
+	if [[ $+uncompiled -eq 1 ]] ; then
+		list_uncompiled
+	elif [[ $+compiled -eq 1 ]] ; then
+		list_compiled
+	elif [[ $+list -eq 1 ]] ; then
+		list_pkgs
+	else
+		echo "please wait, collecting packages to build"
+		collect_pkgs $positionals
 
-        if [[ $#abs_failed > 0 ]] ; then
-            echo -e "\nskipping $[$#abs_failed / 2] packages that could not be retrieved from abs:"
-            for pkg ver in $abs_failed ; do
-                print_pkg $pkg $ver
-            done
-        fi
+		if [[ $#abs_failed > 0 ]] ; then
+			echo -e "\nskipping $[$#abs_failed / 2] packages that could not be retrieved from abs:"
+			for pkg ver in $abs_failed ; do
+				print_pkg $pkg $ver
+			done
+		fi
 
-        if [[ $#abs_badv > 0 ]] ; then
-            echo -e "\nskipping $[$#abs_badv / 3] packages that are at incorrect version in abs:"
-            for pkg abs_ver ver in $abs_badv ; do
-                info $pkg "[abs version: $c_ver$abs_ver$c_rst != $c_ver$ver$c_rst]"
-            done
-        fi
+		if [[ $#abs_badv > 0 ]] ; then
+			echo -e "\nskipping $[$#abs_badv / 3] packages that are at incorrect version in abs:"
+			for pkg abs_ver ver in $abs_badv ; do
+				info $pkg "[abs version: $c_ver$abs_ver$c_rst != $c_ver$ver$c_rst]"
+			done
+		fi
 
-        if [[ $#resolved_pkgs > 0 ]] ; then
-            echo -e "\nskipping $[$#resolved_pkgs / 2] already compiled packages:"
-            for pkg ver in $resolved_pkgs ; do
-                print_pkg $pkg $ver
-            done
-        fi
+		if [[ $#resolved_pkgs > 0 ]] ; then
+			echo -e "\nskipping $[$#resolved_pkgs / 2] already compiled packages:"
+			for pkg ver in $resolved_pkgs ; do
+				print_pkg $pkg $ver
+			done
+		fi
 
-        if [[ $#cyclic_deps > 0 ]] ; then
-            echo -e "\ninstalling $#cyclic_deps packages due to cyclic dependencies:"
-            for pkg in $cyclic_deps ; do
-                info $pkg
-            done
-        fi
+		if [[ $#cyclic_deps > 0 ]] ; then
+			echo -e "\ninstalling $#cyclic_deps packages due to cyclic dependencies:"
+			for pkg in $cyclic_deps ; do
+				info $pkg
+			done
+		fi
 
-        if [[ $#makedep_pkgs > 0 ]] ; then
-            echo -e "\ninstalling $#makedep_pkgs packages due to make dependencies:"
-            for pkg in ${(k)makedep_pkgs} ; do
-                print_pkg $pkg $makedep_pkgs[$pkg]
-            done
-        fi
+		if [[ $#makedep_pkgs > 0 ]] ; then
+			echo -e "\ninstalling $#makedep_pkgs packages due to make dependencies:"
+			for pkg in ${(k)makedep_pkgs} ; do
+				print_pkg $pkg $makedep_pkgs[$pkg]
+			done
+		fi
 
-        echo -e "\npacmoon install list:"
-        local sfx
-        for pkg ver in $install_pkgs ; do
-            print_inst_pkg $pkg $ver
-        done
-        echo -e "\n$[$#install_pkgs / 2] packages will be compiled\n"
+		echo -e "\npacmoon install list:"
+		local sfx
+		for pkg ver in $install_pkgs ; do
+			print_inst_pkg $pkg $ver
+		done
+		echo -e "\n$[$#install_pkgs / 2] packages will be compiled\n"
 
-        [[ $+pretend -eq 0 ]] && build_pkgs
-    fi
+		[[ $+pretend -eq 0 ]] && build_pkgs
+	fi
 }
 
 main $*
