@@ -75,6 +75,10 @@ packages_installer() {
 	as_root pkg++ -i -u
 }
 
+dependencies_installer() {
+	die "Installing binary packages is still unsupported."
+}
+
 #/FIXME
 
 typeset -A dep_status
@@ -418,12 +422,12 @@ build_pkgs() {
 	fi
 
 	for pkg in $cyclic_deps ; do
-		as_root dependencies_installer $pkg || die \
+		dependencies_installer $pkg || die \
 			"could not get binary package for recursive dependency $pkg"
 	done
 
 	for pkg in ${(k)makedep_pkgs} ; do
-		as_root dependencies_installer $pkg
+		dependencies_installer $pkg
 	done
 
 	for pkg ver in "${(@)install_pkgs}" ; do
