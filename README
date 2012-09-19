@@ -1,0 +1,14 @@
+
+pacmoon is a script for compiling packages and their dependencies from 
+a tree of recipes.
+
+The tool was made to run on Arch Linux, but this fork is made to run 
+mainly on Crux Linux, or any other distribution using the pkgutils. In
+the future, we hope to modularize pacmoon enough to make it work on
+several distributions.
+
+To use this fork of pacmoon, you need to install the usagi zsh library 
+providing the `jgetopts` tool, and `pkg++`.
+
+Any help, suggestion or bug report is welcome. :)
+
