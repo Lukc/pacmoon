@@ -51,7 +51,11 @@ get_available_version() {
 	fi
 }
 
+# I don’t remember having seen conflicts or provides in any Crux recipe…
 get_conflicts() {
+	:
+}
+get_provides() {
 	:
 }
 
@@ -222,7 +226,12 @@ resolve_name() {
 
 	if [[ -z $pkgData ]] ; then
 		# FIXME: Replace that?
-		pkgData=( $(package-query -Sf $pq_fmt --query-type provides $name) )
+		local provided=$(get_provides)
+		pkgData=( $(get_installation_date $provided)
+		          $(get_collection $provided)
+		          $provided
+		          $(get_available_version $provided)
+		          $(get_installed_version $provided) )
 
 		if [[ $#pkgData -ne 4 ]] ; then
 			if [[ $#pkgData -lt 4 ]] ; then
