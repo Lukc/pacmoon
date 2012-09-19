@@ -23,7 +23,11 @@ get_installed_packages_list() {
 }
 
 get_installation_date() {
-	echo - -
+	if is_installed $1; then
+		echo 0 # How can I get *that* on Crux?
+	else
+		echo - -
+	fi
 }
 
 get_collection() {
@@ -149,6 +153,7 @@ typeset -a abs_failed
 typeset -a abs_badv
 
 is_dep() {
+	# FIXME: pacman -Qe tells in the package was installed on the user’s request or as a dependency
 	[[ $+requested_pkgs[$1] -eq 0 ]] && ! pacman &>/dev/null -Qe $1
 }
 
@@ -285,6 +290,7 @@ collect_pkg_data() {
 			fi
 		fi
 
+		# FIXME: I suggest we replace this by a call to `portdbc`.
 		if [[ $use_abs -eq 0 ]] ; then
 			rsync &>/dev/null $RSYNC_ARGS "$ABS_RSYNC/$arch/$repo/$basename/" .
 			if [[ $? -ne 0 ]] ; then
@@ -296,7 +302,7 @@ collect_pkg_data() {
 
 		typeset -a mk_deps
 		mk_deps=( $(zsh -c \
-			'. /etc/pkg++.conf; . ./Pkgfile && echo $version-$release ${depends[@]} ${builddepends[@]} && grep "^# Depends on:" Pkgfile | sed "s/# Depends on://"') )
+			'. /etc/pkg++.conf; . ./Pkgfile && echo $version-$release ${depends[@]} ${builddepends[@]} && grep "^# Depends on:" Pkgfile | sed "s/# Depends on://;s/,//g"') )
 
 		local abs_ver=$mk_deps[1]
 		if [[ $abs_ver != $ver ]] ; then
@@ -315,7 +321,9 @@ collect_pkg_data() {
 				typeset -a pkgData
 				for dep in $mk_deps ; do
 					pkgData=( $(resolve_name $dep $dep) )
-					if [[ $? -eq 0 ]] && ! pacman &>/dev/null -Q $pkgData[3] ; then
+					# FIXME: We have a problem here, if the package manager is
+					#        low-level and unable to get binary packages.
+					if [[ $? -eq 0 ]] && ! is_installed $pkgData[3] ; then
 						makedep_pkgs[$pkgData[3]]=$pkgData[4]
 					fi
 				done
@@ -363,18 +371,22 @@ collect_pkg() {
 		dep_status[$name]=1
 	fi
 
-	if [[ $pkgData[1] = - ]] ; then
+	if [[ $pkgData[1] = - ]]; then
 		verbose "new package $name"
-	elif [ -f $pmoonHome/pkg/$name ] ; then
-		if [[ $pkgData[1] -le $(cat $pmoonHome/pkg/$name) ]] ; then
-			resolved_pkgs+=($name $pkgData[4])
-			verbose "package $name up to date and compiled"
-			return
-		else
-			verbose "package $name was replaced by binary"
-		fi
 	else
-		verbose "package $name installed but never compiled"
+		#if <<rebuild binaries>> &&  [ -f $pmoonHome/pkg/$name ] ; then
+		#	if [[ $pkgData[1] -le $(cat $pmoonHome/pkg/$name) ]] ; then
+		#		resolved_pkgs+=($name $pkgData[4])
+		#		verbose "package $name up to date and compiled"
+		#		return
+		#	else
+		#		verbose "package $name was replaced by binary"
+		#	fi
+		#else
+			resolved_pkgs+=($name $pkgData[4])
+			verbose "package $name already installed (but never compiled)"
+			return
+		#fi
 	fi
 
 	dep_status[$name]=2
@@ -483,7 +495,7 @@ main() {
 			done
 		fi
 
-		if [[ $#resolved_pkgs > 0 ]] ; then
+		if [[ $#resolved_pkgs > 0 && $+verbose -eq 1 ]] ; then
 			echo -e "\nskipping $[$#resolved_pkgs / 2] already compiled packages:"
 			for pkg ver in $resolved_pkgs ; do
 				print_pkg $pkg $ver
@@ -504,7 +516,7 @@ main() {
 			done
 		fi
 
-		echo -e "\npacmoon install list:"
+		echo -e "\npackages to build:"
 		local sfx
 		for pkg ver in $install_pkgs ; do
 			print_inst_pkg $pkg $ver
