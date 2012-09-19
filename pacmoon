@@ -225,7 +225,6 @@ resolve_name() {
 	          $(get_installed_version $name) )
 
 	if [[ -z $pkgData ]] ; then
-		# FIXME: Replace that?
 		local provided=$(get_provides)
 		pkgData=( $(get_installation_date $provided)
 		          $(get_collection $provided)
