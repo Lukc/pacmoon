@@ -81,6 +81,10 @@ print_pkg() {
 print_inst_pkg() {
 	echo -n " $fg[green]*$c_rst" $1 "[$c_ver$2$c_rst]"
 
+	if is_rebuild $1; then
+		echo -n " $fg[red](R)$c_rst"
+	fi
+
 	if [[ $+split_pkgs[$1] -eq 1 ]] ; then
 		# TODO: print whether each split package is going to be installed
 		#	   as a dependency separately
@@ -149,12 +153,17 @@ typeset -a install_pkgs
 typeset -A makedep_pkgs
 typeset -a cyclic_deps
 typeset -a resolved_pkgs
+typeset -A rebuild_pkgs
 typeset -a abs_failed
 typeset -a abs_badv
 
 is_dep() {
-	# FIXME: pacman -Qe tells in the package was installed on the user’s request or as a dependency
+	# FIXME: pacman -Qe tells if the package was installed on the user’s request or as a dependency
 	[[ $+requested_pkgs[$1] -eq 0 ]] && ! pacman &>/dev/null -Qe $1
+}
+
+is_rebuild() {
+	[[ $+rebuild_pkgs[$1] -eq 1 ]]
 }
 
 build_pkg() {
@@ -374,19 +383,24 @@ collect_pkg() {
 	if [[ $pkgData[1] = - ]]; then
 		verbose "new package $name"
 	else
-		#if <<rebuild binaries>> &&  [ -f $pmoonHome/pkg/$name ] ; then
-		#	if [[ $pkgData[1] -le $(cat $pmoonHome/pkg/$name) ]] ; then
-		#		resolved_pkgs+=($name $pkgData[4])
-		#		verbose "package $name up to date and compiled"
-		#		return
-		#	else
-		#		verbose "package $name was replaced by binary"
-		#	fi
-		#else
+		if [[ $+rebuild_binaries -eq 1 ]] ; then
+		       	if [ -f $pmoonHome/pkg/$name ] ; then
+				if [[ $pkgData[1] -le $(cat $pmoonHome/pkg/$name) ]] ; then
+					resolved_pkgs+=($name $pkgData[4])
+					verbose "package $name up to date and compiled"
+					return
+				else
+					verbose "package $name was replaced by binary"
+				fi
+			else
+				rebuild_pkgs[$name]=1
+				verbose "package $name installed but never compiled"
+			fi
+		else
 			resolved_pkgs+=($name $pkgData[4])
 			verbose "package $name already installed (but never compiled)"
 			return
-		#fi
+		fi
 	fi
 
 	dep_status[$name]=2
@@ -451,17 +465,18 @@ collect_pkgs() {
 main() {
 	jgetopt $0 "$PACMOON_VERSION (please enjoy your evening)" \
 		':[packages]' \
-		ask,a		  "ask for confirmation before compiling" \
-		pretend,p	  "only print what would be done" \
-		keep-going,k   "do not stop on error" \
-		verbose,v	  "increase verbosity" \
-		quiet,q		"hide output of compilation" \
-		keep-build,b   "keep temporary build files" \
-		no-abs,A	   "do not use local abs mirror (slower)" \
-		uncompiled,u   "list packages which have not been custom compiled" \
-		make-deps,m	"compile make dependencies rather than using binaries" \
-		compiled,c	 "list packages which have been custom compiled" \
-		list,l		 "list installed packages with their compilation status" \
+		ask,a               "ask for confirmation before compiling" \
+		pretend,p           "only print what would be done" \
+		keep-going,k        "do not stop on error" \
+		verbose,v           "increase verbosity" \
+		quiet,q	            "hide output of compilation" \
+		keep-build,b        "keep temporary build files" \
+		no-abs,A            "do not use local abs mirror (slower)" \
+		uncompiled,u        "list packages which have not been custom compiled" \
+		make-deps,m         "compile make dependencies rather than using binaries" \
+		compiled,c          "list packages which have been custom compiled" \
+		list,l              "list installed packages with their compilation status" \
+		rebuild-binaries,r  "rebuild packages installed from binary repositories" \
 		-- $*
 
 	if [[ $+no_abs = 0 && ! -d $ABS_DIR ]] ; then
