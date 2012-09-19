@@ -34,8 +34,7 @@ get_collection() {
 }
 
 get_installed_version() {
-	local version=$(pkginfo -i | grep "^$1 " | cut -d " " -f 2)
-	[[ -n "$version" ]] && echo "$version" 
+	pkginfo -i | grep "^$1 " | cut -d " " -f 2
 }
 
 get_available_version() {
