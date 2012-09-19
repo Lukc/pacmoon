@@ -72,7 +72,7 @@ builder() {
 }
 
 packages_installer() {
-	pkg++ -i -u
+	as_root pkg++ -i -u
 }
 
 #/FIXME
@@ -154,11 +154,6 @@ pushd_build_dir() {
 	pushd $build_dir
 }
 
-pacman_output_field() {
-	pacman 2>/dev/null ${(s: :)1} | grep "^$2" | sed 's/.*: //'
-}
-
-dbPath=$(pacman_output_field -v DB)
 typeset -A split_pkgs
 typeset -A requested_pkgs
 typeset -a install_pkgs
@@ -192,14 +187,14 @@ build_pkg() {
 
 	rm -f *.pkg.tar.*
 	if [[ $+quiet -eq 1 ]] ; then
-		as_root builder &>/dev/null
+		builder &>/dev/null
 	else
-		as_root builder
+		builder
 	fi
 
 	[[ $? -eq 0 ]] || die "could not build $name"
 
-	as_root packages_installer || \
+	packages_installer || \
 		die "could not install package"
 
 	# record the date the package was dep_status
@@ -437,8 +432,6 @@ build_pkgs() {
 }
 
 collect_all() {
-	local logPath=$(pacman_output_field -v Log)
-
 	if [[ -f "$pmoonHome/last_update" ]] ; then
 		# TODO: use log to get list of candidates to compile
 		:
