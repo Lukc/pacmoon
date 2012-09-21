@@ -302,13 +302,6 @@ collect_pkg_data() {
 
 		local arch=$(get_architecture $repo/$basename)
 		local use_abs=0
-		#if [[ $+no_remote -eq 0 ]] ; then
-		#	if cp &>/dev/null -r "$PORTS_DIR/$repo/$basename"/* . ; then
-		#		use_abs=1
-		#	else
-		#		warn "could not get $basename from local collections, falling back to distant ports"
-		#	fi
-		#fi
 		if cp &>/dev/null -r "$PORTS_DIR/$repo/$basename"/* . ; then
 			use_abs=1
 		else
