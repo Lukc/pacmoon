@@ -31,7 +31,16 @@ get_installation_date() {
 }
 
 get_collection() {
-	local collection=$( find $PORTS_DIR | grep "/$1/Pkgfile" | head -n1 | sed "s&$PORTS_DIR/&&;s&/$1/Pkgfile&&" )
+	typeset -la collections collection
+	collections=( "$PORTS_DIR"/* )
+
+	for C in $collections[*]; do
+		[[ -e "$C/$1" && -e "$C/$1/Pkgfile" ]] && \
+			collection=$C && \
+			break
+	done
+
+	collection=$( echo $collection | sed "s&$PORTS_DIR/&&" )
 
 	if [[ -z "$collection" ]]; then
 		collection=$( portdbc search $1 | grep "^$1 " | head -n1 | sed "s/$1 *//;s/ .*//" )
