@@ -4,10 +4,7 @@ emulate zsh
 setopt warnCreateGlobal extendedGlob noFunctionArgZero nullGlob
 
 PACMOON_VERSION=0.8.3
-AUR_BASE=http://aur.archlinux.org/packages
-ABS_DIR=/usr/ports
-ABS_RSYNC=rsync.archlinux.org::abs
-RSYNC_ARGS=(-mrtv --no-motd --no-p --no-o --no-g)
+PORTS_DIR=/usr/ports
 
 autoload jgetopt colors
 colors
@@ -17,6 +14,9 @@ logFile="$pmoonHome/log"
 mkdir -p $pmoonHome/pkg || die "could not mkdir $pmoonHome/pkg"
 
 # FIXME: Modularize
+
+# NOTE: We’ll try to remove that with other package managers…
+no_binary_fetch=1
 
 get_installed_packages_list() {
 	pkginfo -i | cut -d " " -f 1
@@ -31,7 +31,11 @@ get_installation_date() {
 }
 
 get_collection() {
-	local collection=$( find $ABS_DIR | grep "/$1/Pkgfile" | head -n1 | sed "s&$ABS_DIR/&&;s&/$1/Pkgfile&&" )
+	local collection=$( find $PORTS_DIR | grep "/$1/Pkgfile" | head -n1 | sed "s&$PORTS_DIR/&&;s&/$1/Pkgfile&&" )
+
+	if [[ -z "$collection" ]]; then
+		collection=$( portdbc search $1 | grep "^$1 " | head -n1 | sed "s/$1 *//;s/ .*//" )
+	fi
 
 	[[ -n "$collection" ]] && echo "$collection" || \
 		echo - -
@@ -44,8 +48,8 @@ get_installed_version() {
 get_available_version() {
 	local collection=$(get_collection $1)
 		
-	if [[ "$collection" != - ]]; then
-		zsh -c ". $ABS_DIR/$collection/$1/Pkgfile; echo \$version-\$release"
+	if [[ -d "$PORTS_DIR/$collection" ]]; then
+		zsh -c ". $PORTS_DIR/$collection/$1/Pkgfile; echo \$version-\$release" 2>/dev/null
 	else
 		get_installed_version $1
 	fi
@@ -297,18 +301,33 @@ collect_pkg_data() {
 		pushd_build_dir $basename
 
 		local arch=$(get_architecture $repo/$basename)
-		local use_abs=1 # FIXME: For now… well… not a good idea.
-		if [[ $+no_abs -eq 0 ]] ; then
-			if cp &>/dev/null -r "$ABS_DIR/$repo/$basename"/* . ; then
-				use_abs=1
+		local use_abs=0
+		#if [[ $+no_remote -eq 0 ]] ; then
+		#	if cp &>/dev/null -r "$PORTS_DIR/$repo/$basename"/* . ; then
+		#		use_abs=1
+		#	else
+		#		warn "could not get $basename from local collections, falling back to distant ports"
+		#	fi
+		#fi
+		if cp &>/dev/null -r "$PORTS_DIR/$repo/$basename"/* . ; then
+			use_abs=1
+		else
+			if [[ $+no_remote -eq 0 ]]; then
+				warn "could not get $basename from local collections, falling back to distant ports"
 			else
-				warn "could not get $basename from local abs, falling back to rsync"
+				error "could not get $basename from local collections"
 			fi
 		fi
 
-		# FIXME: I suggest we replace this by a call to `portdbc`.
 		if [[ $use_abs -eq 0 ]] ; then
-			rsync &>/dev/null $RSYNC_ARGS "$ABS_RSYNC/$arch/$repo/$basename/" .
+			typeset -a instructions
+			instructions=( $(portdbc search "$basename" | grep "^$basename " | head -n1 | sed -e "s/$basename *[a-zA-Z0-9]* *//;s/$basename$//") . )
+			if [[ $+verbose -eq 1 ]] ; then
+				${instructions[*]}
+			else
+				${instructions[*]} &>/dev/null
+			fi
+
 			if [[ $? -ne 0 ]] ; then
 				warn "could not retrieve $basename-$ver from abs rsync"
 				abs_failed+=($basename $ver)
@@ -321,6 +340,11 @@ collect_pkg_data() {
 			'. /etc/pkg++.conf; . ./Pkgfile && echo $version-$release ${depends[@]} ${builddepends[@]} && grep "^# Depends on:" Pkgfile | sed "s/# Depends on://;s/,//g"') )
 
 		local abs_ver=$mk_deps[1]
+		if [[ -z "$ver" ]]; then
+			ver=$abs_ver
+			pkgData[4]=$abs_ver
+		fi
+
 		if [[ $abs_ver != $ver ]] ; then
 			abs_badv+=($basename $abs_ver $ver)
 			return 1
@@ -476,7 +500,7 @@ main() {
 		verbose,v           "increase verbosity" \
 		quiet,q	            "hide output of compilation" \
 		keep-build,b        "keep temporary build files" \
-		no-abs,A            "do not use local abs mirror (slower)" \
+		no-remote,R         "do not download missing ports" \
 		uncompiled,u        "list packages which have not been custom compiled" \
 		make-deps,m         "compile make dependencies rather than using binaries" \
 		compiled,c          "list packages which have been custom compiled" \
@@ -484,11 +508,15 @@ main() {
 		rebuild-binaries,r  "rebuild packages installed from binary repositories" \
 		-- $*
 
-	if [[ $+no_abs = 0 && ! -d $ABS_DIR ]] ; then
-		warn "ABS directory is not available, reverting to downloading abs builds one at a time which is slower"
-		warn "Please install 'abs' and run it to sync your local abs mirror"
-		typeset -g no_abs
-		no_abs=1
+	if [[ $no_binary_fetch = 1 ]] ; then
+		typeset -g make_deps=1
+	fi
+
+	if [[ $+no_remote = 0 && ! -d $PORTS_DIR ]] ; then
+		warn "No ports collection is available, reverting to downloading recipes one at a time which is slower"
+		warn "Please run “ports -u” or manually synchronize your ports tree."
+		typeset -g no_remote
+		no_remote=1
 	fi
 
 	if [[ $+uncompiled -eq 1 ]] ; then
@@ -509,9 +537,9 @@ main() {
 		fi
 
 		if [[ $#abs_badv > 0 ]] ; then
-			echo -e "\nskipping $[$#abs_badv / 3] packages that are at incorrect version in abs:"
+			echo -e "\nskipping $[$#abs_badv / 3] packages that are at incorrect version in collection:"
 			for pkg abs_ver ver in $abs_badv ; do
-				info $pkg "[abs version: $c_ver$abs_ver$c_rst != $c_ver$ver$c_rst]"
+				info $pkg "[collection version: $c_ver$abs_ver$c_rst != $c_ver$ver$c_rst]"
 			done
 		fi
 
