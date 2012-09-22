@@ -89,7 +89,11 @@ builder() {
 }
 
 packages_installer() {
-	as_root pkg++ -i -u
+	if is_installed $1; then
+		as_root pkg++ -i -u
+	else
+		as_root pkg++ -i
+	fi
 }
 
 dependencies_installer() {
@@ -215,7 +219,7 @@ build_pkg() {
 
 	[[ $? -eq 0 ]] || die "could not build $name"
 
-	packages_installer || \
+	packages_installer $name || \
 		die "could not install package"
 
 	# record the date the package was dep_status
