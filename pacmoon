@@ -13,24 +13,28 @@ pmoonHome="${XDG_CONFIG_HOME:-$HOME/.config}/pacmoon"
 logFile="$pmoonHome/log"
 mkdir -p $pmoonHome/pkg || die "could not mkdir $pmoonHome/pkg"
 
+PACMOON_BUILDER=pkgxx
+PACMOON_PKG_MANAGER=pkgutils
+
 # FIXME: Modularize
 
 # NOTE: We’ll try to remove that with other package managers…
-no_binary_fetch=1
 
-get_installed_packages_list() {
+pkgutils:no_binary_fetch() { : }
+
+pkgutils:get_installed_packages_list() {
 	pkginfo -i | cut -d " " -f 1
 }
 
-get_installation_date() {
-	if is_installed $1; then
+pkgutils:get_installation_date() {
+	if pkgutils:is_installed $1; then
 		echo 0 # How can I get *that* on Crux?
 	else
 		echo - -
 	fi
 }
 
-get_collection() {
+pkgutils:get_collection() {
 	typeset -la collections collection
 	collections=( "$PORTS_DIR"/* )
 
@@ -50,57 +54,57 @@ get_collection() {
 		echo - -
 }
 
-get_installed_version() {
+pkgutils:get_installed_version() {
 	pkginfo -i | grep "^$1 " | cut -d " " -f 2
 }
 
-get_available_version() {
-	local collection=$(get_collection $1)
+pkgutils:get_available_version() {
+	local collection=$(pkgutils:get_collection $1)
 		
 	if [[ -d "$PORTS_DIR/$collection" ]]; then
 		zsh -c ". $PORTS_DIR/$collection/$1/Pkgfile; echo \$version-\$release" 2>/dev/null
 	else
-		get_installed_version $1
+		pkgutils:get_installed_version $1
 	fi
 }
 
 # I don’t remember having seen conflicts or provides in any Crux recipe…
-get_conflicts() {
+pkgutils:get_conflicts() {
 	:
 }
-get_provides() {
+pkgutils:get_provides() {
 	:
 }
 
-is_installed() {
+pkgutils:is_installed() {
 	grep -q "^$1$" /var/lib/pkg/db
 }
 
-is_installed_as_dep() {
+pkgutils:is_installed_as_dep() {
 	false
 }
 
-get_architecture() {
+pkgutils:get_architecture() {
 	crux | cut -d " " -f 2
 }
 
-builder() {
-	as_root pkg++ $mkpkg_args
-}
-
-packages_installer() {
-	if is_installed $1; then
+pkgutils:packages_installer() {
+	if pkgutils:is_installed $1; then
 		as_root pkg++ -i -u
 	else
 		as_root pkg++ -i
 	fi
 }
 
-dependencies_installer() {
+pkgutils:dependencies_installer() {
 	die "Installing binary packages is still unsupported."
 }
 
-get_name_and_deps() {
+pkgxx:builder() {
+	as_root pkg++ $mkpkg_args
+}
+
+pkgxx:get_name_and_deps() {
 	# We call a new instance of zsh to avoid contamination of our current environment
 	zsh -c \
 		'. /etc/pkg++.conf;
@@ -189,6 +193,16 @@ pushd_build_dir() {
 	pushd $build_dir
 }
 
+check_configuration() {
+	if [[ -z "$PACMOON_BUILDER" ]]; then
+		die "You need a correct value for \$PACMOON_BUILDER"
+	fi
+
+	if [[ -z "$PACMOON_PKG_MANAGER" ]]; then
+		die "You need a correct value for \$PACMOON_PKG_MANAGER"
+	fi
+}
+
 typeset -A split_pkgs
 typeset -A requested_pkgs
 typeset -a install_pkgs
@@ -200,7 +214,7 @@ typeset -a abs_failed
 typeset -a abs_badv
 
 is_dep() {
-	[[ $+requested_pkgs[$1] -eq 0 ]] && ! is_installed_as_dep $1
+	[[ $+requested_pkgs[$1] -eq 0 ]] && ! ${PACMOON_PKG_MANAGER}:is_installed_as_dep $1
 }
 
 is_rebuild() {
@@ -222,9 +236,9 @@ build_pkg() {
 
 	rm -f *.pkg.tar.*
 	if [[ $+quiet -eq 1 ]] ; then
-		builder &>/dev/null
+		${PACMOON_BUILDER}:builder &>/dev/null
 	else
-		builder
+		${PACMOON_BUILDER}:builder
 	fi
 
 	[[ $? -eq 0 ]] || die "could not build $name"
@@ -233,7 +247,7 @@ build_pkg() {
 		die "could not install package"
 
 	# record the date the package was dep_status
-	get_installation_date $name > "$pmoonHome/pkg/$name"
+	${PACMOON_PKG_MANAGER}:get_installation_date $name > "$pmoonHome/pkg/$name"
 	[[ $+keep_temp = 0 ]] && rm -rf "$pmoonHome/tmp/$name"
 	popd
 }
@@ -245,19 +259,19 @@ resolve_name() {
 
 	local pq_fmt="%1 %s %n %v %l"
 	typeset -a pkgData
-	pkgData=( $(get_installation_date $name)
-	          $(get_collection $name)
+	pkgData=( $(${PACMOON_PKG_MANAGER}:get_installation_date $name)
+	          $(${PACMOON_PKG_MANAGER}:get_collection $name)
 	          $name
-	          $(get_available_version $name)
-	          $(get_installed_version $name) )
+	          $(${PACMOON_PKG_MANAGER}:get_available_version $name)
+	          $(${PACMOON_PKG_MANAGER}:get_installed_version $name) )
 
 	if [[ -z $pkgData ]] ; then
-		local provided=$(get_provides)
-		pkgData=( $(get_installation_date $provided)
-		          $(get_collection $provided)
+		local provided=$(${PACMOON_PKG_MANAGER}:get_provides)
+		pkgData=( $(${PACMOON_PKG_MANAGER}:get_installation_date $provided)
+		          $(${PACMOON_PKG_MANAGER}:get_collection $provided)
 		          $provided
-		          $(get_available_version $provided)
-		          $(get_installed_version $provided) )
+		          $(${PACMOON_PKG_MANAGER}:get_available_version $provided)
+		          $(${PACMOON_PKG_MANAGER}:get_installed_version $provided) )
 
 		if [[ $#pkgData -ne 4 ]] ; then
 			if [[ $#pkgData -lt 4 ]] ; then
@@ -276,7 +290,7 @@ resolve_name() {
 
 	# check if package conflicts with anything already installed
 	local conflict
-	conflict=( $(get_conflicts $name_v) )
+	conflict=( $(${PACMOON_PKG_MANAGER}:get_conflicts $name_v) )
 	if [[ -n $conflict ]] ; then
 		echo "$conflict"
 	else
@@ -323,7 +337,7 @@ collect_pkg_data() {
 
 		pushd_build_dir $basename
 
-		local arch=$(get_architecture $repo/$basename)
+		local arch=$(${PACMOON_PKG_MANAGER}:get_architecture $repo/$basename)
 		local use_abs=0
 		if cp &>/dev/null -r "$PORTS_DIR/$repo/$basename"/* . ; then
 			use_abs=1
@@ -352,7 +366,7 @@ collect_pkg_data() {
 		fi
 
 		typeset -a mk_deps
-		mk_deps=( $(get_name_and_deps) )
+		mk_deps=( $(${PACMOON_BUILDER}:get_name_and_deps) )
 
 		local abs_ver=$mk_deps[1]
 		if [[ -z "$ver" ]]; then
@@ -378,7 +392,7 @@ collect_pkg_data() {
 					pkgData=( $(resolve_name $dep $dep) )
 					# FIXME: We have a problem here, if the package manager is
 					#        low-level and unable to get binary packages.
-					if [[ $? -eq 0 ]] && ! is_installed $pkgData[3] ; then
+					if [[ $? -eq 0 ]] && ! ${PACMOON_PKG_MANAGER}:is_installed $pkgData[3] ; then
 						makedep_pkgs[$pkgData[3]]=$pkgData[4]
 					fi
 				done
@@ -399,7 +413,7 @@ as_root() {
 processing_pkg() {
 	if [[ $+dep_status[$1] -eq 1 ]] ; then
 		if [[ $dep_status[$1] -eq 2 ]] ; then
-			is_installed $1 || cyclic_deps+=$1
+			${PACMOON_PKG_MANAGER}:is_installed $1 || cyclic_deps+=$1
 			dep_status[$1]=1
 		fi
 		return 1
@@ -469,12 +483,12 @@ build_pkgs() {
 	fi
 
 	for pkg in $cyclic_deps ; do
-		dependencies_installer $pkg || die \
+		${PACMOON_PKG_MANAGER}:dependencies_installer $pkg || die \
 			"could not get binary package for recursive dependency $pkg"
 	done
 
 	for pkg in ${(k)makedep_pkgs} ; do
-		dependencies_installer $pkg
+		${PACMOON_PKG_MANAGER}:dependencies_installer $pkg
 	done
 
 	for pkg ver in "${(@)install_pkgs}" ; do
@@ -489,7 +503,7 @@ collect_all() {
 	else
 		warn "last update time not found, checking all installed packages"
 
-		for pkg in $(get_installed_packages_list) ; do
+		for pkg in $(${PACMOON_PKG_MANAGER}:get_installed_packages_list) ; do
 			collect_pkg $pkg
 		done
 	fi
@@ -523,7 +537,7 @@ main() {
 		rebuild-binaries,r  "rebuild packages installed from binary repositories" \
 		-- $*
 
-	if [[ $no_binary_fetch = 1 ]] ; then
+	if [[ ! $(type no_binary_fetchi) =~ "not found" ]] ; then
 		typeset -g make_deps=1
 	fi
 
@@ -533,6 +547,8 @@ main() {
 		typeset -g no_remote
 		no_remote=1
 	fi
+
+	check_configuration
 
 	if [[ $+uncompiled -eq 1 ]] ; then
 		list_uncompiled
