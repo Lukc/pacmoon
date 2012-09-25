@@ -550,6 +550,8 @@ main() {
 
 	check_configuration
 
+	. @MODULES_DIR@/${PACMOON_PKG_MANAGER}.zsh
+
 	if [[ $+uncompiled -eq 1 ]] ; then
 		list_uncompiled
 	elif [[ $+compiled -eq 1 ]] ; then
